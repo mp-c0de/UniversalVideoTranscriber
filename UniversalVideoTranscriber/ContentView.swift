@@ -19,9 +19,14 @@ struct ContentView: View {
     @State private var selectedTab: ViewTab = .transcript
     @State private var showingFileImporter = false
     @State private var showingExporter = false
-    @State private var showingSRTExporter = false
+    @State private var exportFormat: ExportFormat = .txt
     @State private var showingSettings = false
     @State private var currentTranscription: TranscriptionData?
+
+    enum ExportFormat {
+        case txt
+        case srt
+    }
     @State private var showingPermissionAlert = false
     @State private var showingErrorAlert = false
     @State private var errorMessage = ""
@@ -93,14 +98,6 @@ struct ContentView: View {
                     }
                 }
             }
-            .fileExporter(
-                isPresented: $showingExporter,
-                document: TranscriptDocument(transcription: exportableTranscription),
-                contentType: .plainText,
-                defaultFilename: selectedVideoURL?.deletingPathExtension().lastPathComponent ?? "transcript"
-            ) { result in
-                handleExport(result)
-            }
             
             // Loading overlay
             if transcriptionManager.isTranscribing {
@@ -115,10 +112,10 @@ struct ContentView: View {
             handleFileSelection(result)
         }
         .fileExporter(
-            isPresented: $showingSRTExporter,
-            document: SRTDocument(transcription: exportableTranscription, characterLimit: 42),
-            contentType: .srt,
-            defaultFilename: (selectedVideoURL?.deletingPathExtension().lastPathComponent ?? "transcript") + ".srt"
+            isPresented: $showingExporter,
+            document: UnifiedTranscriptDocument(transcription: exportableTranscription, format: exportFormat),
+            contentType: exportFormat == .txt ? .plainText : .srt,
+            defaultFilename: (selectedVideoURL?.deletingPathExtension().lastPathComponent ?? "transcript") + (exportFormat == .txt ? "" : ".srt")
         ) { result in
             handleExport(result)
         }
@@ -418,12 +415,17 @@ struct ContentView: View {
                     Menu {
                         Button(action: {
                             print("DEBUG: Export as Text button pressed")
+                            exportFormat = .txt
                             showingExporter = true
                         }) {
                             Label("As Text", systemImage: "doc.text")
                         }
 
-                        Button(action: { showingSRTExporter = true }) {
+                        Button(action: {
+                            print("DEBUG: Export as SRT button pressed")
+                            exportFormat = .srt
+                            showingExporter = true
+                        }) {
                             Label("As SRT Subtitles", systemImage: "captions.bubble")
                         }
                     } label: {
@@ -733,28 +735,33 @@ struct TranscriptItemRow: View {
     }
 }
 
-// MARK: - Document for export
+// MARK: - Unified Document for export
 
-struct TranscriptDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.plainText] }
+struct UnifiedTranscriptDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.plainText, .srt] }
     
     var text: String = ""
     
-    init(transcription: TranscriptionData?) {
-        print("DEBUG: TranscriptDocument init called. Transcription is nil? \(transcription == nil)")
+    init(transcription: TranscriptionData?, format: ContentView.ExportFormat) {
+        print("DEBUG: UnifiedTranscriptDocument init called for format: \(format). Transcription is nil? \(transcription == nil)")
         guard let transcription = transcription else { return }
         
-        var content = "Lithuanian Video Transcription\n"
-        content += "Video: \(transcription.videoURL.lastPathComponent)\n"
-        content += "Created: \(transcription.createdAt.formatted())\n"
-        content += "Duration: \(Self.formatDuration(transcription.videoDuration))\n"
-        content += "\n" + String(repeating: "=", count: 60) + "\n\n"
-        
-        for item in transcription.items {
-            content += "[\(item.formattedTimestamp)] \(item.text)\n"
+        switch format {
+        case .txt:
+            var content = "Lithuanian Video Transcription\n"
+            content += "Video: \(transcription.videoURL.lastPathComponent)\n"
+            content += "Created: \(transcription.createdAt.formatted())\n"
+            content += "Duration: \(Self.formatDuration(transcription.videoDuration))\n"
+            content += "\n" + String(repeating: "=", count: 60) + "\n\n"
+            
+            for item in transcription.items {
+                content += "[\(item.formattedTimestamp)] \(item.text)\n"
+            }
+            self.text = content
+            
+        case .srt:
+            self.text = SRTExporter.export(items: transcription.items)
         }
-        
-        self.text = content
     }
     
     init(configuration: ReadConfiguration) throws {
