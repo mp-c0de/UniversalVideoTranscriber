@@ -416,7 +416,10 @@ struct ContentView: View {
 
                 if !transcriptionManager.transcriptItems.isEmpty {
                     Menu {
-                        Button(action: { showingExporter = true }) {
+                        Button(action: {
+                            print("DEBUG: Export as Text button pressed")
+                            showingExporter = true
+                        }) {
                             Label("As Text", systemImage: "doc.text")
                         }
 
@@ -673,6 +676,7 @@ struct ContentView: View {
     }
     
     private func handleExport(_ result: Result<URL, Error>) {
+        print("DEBUG: handleExport called with result: \(result)")
         switch result {
         case .success(let url):
             print("Exported to: \(url)")
@@ -737,6 +741,7 @@ struct TranscriptDocument: FileDocument {
     var text: String = ""
     
     init(transcription: TranscriptionData?) {
+        print("DEBUG: TranscriptDocument init called. Transcription is nil? \(transcription == nil)")
         guard let transcription = transcription else { return }
         
         var content = "Lithuanian Video Transcription\n"
