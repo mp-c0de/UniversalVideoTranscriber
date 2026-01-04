@@ -107,7 +107,7 @@ struct ContentView: View {
         }
         .fileExporter(
             isPresented: $showingExporter,
-            document: TranscriptDocument(transcription: currentTranscription),
+            document: TranscriptDocument(transcription: exportableTranscription),
             contentType: .plainText,
             defaultFilename: selectedVideoURL?.deletingPathExtension().lastPathComponent ?? "transcript"
         ) { result in
@@ -115,7 +115,7 @@ struct ContentView: View {
         }
         .fileExporter(
             isPresented: $showingSRTExporter,
-            document: SRTDocument(transcription: currentTranscription, characterLimit: 42),
+            document: SRTDocument(transcription: exportableTranscription, characterLimit: 42),
             contentType: .srt,
             defaultFilename: (selectedVideoURL?.deletingPathExtension().lastPathComponent ?? "transcript") + ".srt"
         ) { result in
@@ -146,6 +146,16 @@ struct ContentView: View {
         }
     }
     
+    private var exportableTranscription: TranscriptionData? {
+        guard let base = currentTranscription else { return nil }
+        return TranscriptionData(
+            videoURL: base.videoURL,
+            items: transcriptionManager.transcriptItems,
+            videoDuration: base.videoDuration,
+            transcriptionDuration: base.transcriptionDuration
+        )
+    }
+
     // MARK: - Toolbar
 
     private var toolbarView: some View {
