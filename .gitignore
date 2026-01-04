@@ -1,0 +1,31 @@
+# Xcode
+build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+
+# AI Context Files
+CLAUDE.md
+GEMINI.md
+.claude/
+
+# OS X
+.DS_Store
+
+# Temporary
+*.tmp
