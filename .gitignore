@@ -29,3 +29,8 @@ GEMINI.md
 
 # Temporary
 *.tmp
+
+# User specified
+.abacus.donotdelete
+.git
+.gitignore

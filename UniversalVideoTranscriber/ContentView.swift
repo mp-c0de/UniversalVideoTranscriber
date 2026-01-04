@@ -19,7 +19,6 @@ struct ContentView: View {
     @State private var showingFileImporter = false
     @State private var showingExporter = false
     @State private var showingSRTExporter = false
-    @State private var showingSavedTranscriptions = false
     @State private var showingSettings = false
     @State private var currentTranscription: TranscriptionData?
     @State private var showingPermissionAlert = false
@@ -121,13 +120,6 @@ struct ContentView: View {
             defaultFilename: (selectedVideoURL?.deletingPathExtension().lastPathComponent ?? "transcript") + ".srt"
         ) { result in
             handleExport(result)
-        }
-        .sheet(isPresented: $showingSavedTranscriptions) {
-            SavedTranscriptionsView(
-                onSelect: { transcription in
-                    loadSavedTranscription(transcription)
-                }
-            )
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
@@ -412,13 +404,6 @@ struct ContentView: View {
                 }
 
                 if !transcriptionManager.transcriptItems.isEmpty {
-                    Button(action: { saveTranscription() }) {
-                        Label("Save", systemImage: "square.and.arrow.down")
-                            .font(.system(size: 13, weight: .medium))
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.large)
-
                     Menu {
                         Button(action: { showingExporter = true }) {
                             Label("As Text", systemImage: "doc.text")
@@ -434,13 +419,6 @@ struct ContentView: View {
                     .menuStyle(.borderlessButton)
                     .frame(height: 32)
                 }
-
-                Button(action: { showingSavedTranscriptions = true }) {
-                    Label("Saved", systemImage: "clock.arrow.circlepath")
-                        .font(.system(size: 13, weight: .medium))
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
 
                 Button(action: { showingSettings = true }) {
                     Label("Settings", systemImage: "gearshape")
@@ -683,27 +661,6 @@ struct ContentView: View {
         }
     }
     
-    private func saveTranscription() {
-        guard let transcription = currentTranscription else { return }
-
-        // Check if already saved before attempting to save
-        if let hash = transcription.contentHash,
-           PersistenceManager.shared.isSaved(contentHash: hash) {
-            transcriptionManager.statusMessage = "Already saved - no duplicate created"
-            print("💾 User attempted to save duplicate transcription")
-            return
-        }
-
-        do {
-            try PersistenceManager.shared.save(transcription: transcription)
-            transcriptionManager.statusMessage = "Transcription saved successfully!"
-        } catch {
-            print("Error saving transcription: \(error.localizedDescription)")
-            errorMessage = "Failed to save: \(error.localizedDescription)"
-            showingErrorAlert = true
-        }
-    }
-    
     private func handleExport(_ result: Result<URL, Error>) {
         switch result {
         case .success(let url):
@@ -711,13 +668,6 @@ struct ContentView: View {
         case .failure(let error):
             print("Export error: \(error.localizedDescription)")
         }
-    }
-    
-    private func loadSavedTranscription(_ transcription: TranscriptionData) {
-        selectedVideoURL = transcription.videoURL
-        transcriptionManager.transcriptItems = transcription.items
-        currentTranscription = transcription
-        showingSavedTranscriptions = false
     }
 
     private func displayName(for locale: Locale) -> String {
@@ -765,78 +715,6 @@ struct TranscriptItemRow: View {
             )
         }
         .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Saved Transcriptions View
-
-struct SavedTranscriptionsView: View {
-    @Environment(\.dismiss) private var dismiss
-    let onSelect: (TranscriptionData) -> Void
-
-    private var savedTranscriptions: [TranscriptionData] {
-        PersistenceManager.shared.loadAll()
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Saved Transcriptions")
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                Spacer()
-                Button("Done") {
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding(20)
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-
-            Divider()
-
-            if savedTranscriptions.isEmpty {
-                VStack(spacing: 20) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 64, weight: .light))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.blue.opacity(0.6), .purple.opacity(0.6)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                    Text("No Saved Transcriptions")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(savedTranscriptions, id: \.createdAt) { transcription in
-                    Button(action: {
-                        onSelect(transcription)
-                    }) {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(transcription.videoURL.lastPathComponent)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(.primary)
-                            HStack(spacing: 6) {
-                                Text(transcription.createdAt.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
-                                Text("•")
-                                    .foregroundColor(.secondary)
-                                Text("\(transcription.items.count) items")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .frame(width: 600, height: 400)
     }
 }
 
