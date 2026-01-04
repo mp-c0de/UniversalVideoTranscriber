@@ -740,12 +740,25 @@ struct TranscriptItemRow: View {
 struct UnifiedTranscriptDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.plainText, .srt] }
     
-    var text: String = ""
+    var transcription: TranscriptionData?
+    var format: ContentView.ExportFormat
     
     init(transcription: TranscriptionData?, format: ContentView.ExportFormat) {
-        print("DEBUG: UnifiedTranscriptDocument init called for format: \(format). Transcription is nil? \(transcription == nil)")
-        guard let transcription = transcription else { return }
+        self.transcription = transcription
+        self.format = format
+    }
+    
+    init(configuration: ReadConfiguration) throws {
+        self.transcription = nil
+        self.format = .txt
+    }
+    
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        guard let transcription = transcription else {
+            throw CocoaError(.fileWriteUnknown)
+        }
         
+        var text = ""
         switch format {
         case .txt:
             var content = "Lithuanian Video Transcription\n"
@@ -757,22 +770,12 @@ struct UnifiedTranscriptDocument: FileDocument {
             for item in transcription.items {
                 content += "[\(item.formattedTimestamp)] \(item.text)\n"
             }
-            self.text = content
+            text = content
             
         case .srt:
-            self.text = SRTExporter.export(items: transcription.items)
+            text = SRTExporter.export(items: transcription.items)
         }
-    }
-    
-    init(configuration: ReadConfiguration) throws {
-        guard let data = configuration.file.regularFileContents,
-              let string = String(data: data, encoding: .utf8) else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-        text = string
-    }
-    
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        
         let data = text.data(using: .utf8) ?? Data()
         return FileWrapper(regularFileWithContents: data)
     }
